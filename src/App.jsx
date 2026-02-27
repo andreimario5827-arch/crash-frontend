@@ -31,53 +31,62 @@ export default function App() {
 
   
     useEffect(() => {
-    // --- COD NOU: Cere balanta curenta la conectare ---
     socket.emit('request_balance', userId);
 
-    socket.on('balance_update', (val) => {
-      setBalance(val);
-    });
-    // --------------------------------------------------
-    socket.on('game_state_update', (state) => {
+    const onBalanceUpdate = (val) => setBalance(val);
+    
+    const onGameStateUpdate = (state) => {
       setStatus(state.status);
       if (state.status === 'BETTING') {
         setMultiplier(1.00);
         setCountdown(state.countdown);
         setMessage('');
-        setActiveBet(null); // Reset bet for new round
+        
+        // REPARATIA ESTE AICI: Resetam pariul DOAR la secunda 5 (inceputul rundei noi), nu in fiecare secunda!
+        if (state.countdown === 5) {
+           setActiveBet(null); 
+        }
       }
-    });
-
-    socket.on('tick', (num) => setMultiplier(num));
+    };
     
-    socket.on('crash', (val) => {
+    const onTick = (num) => setMultiplier(num);
+    
+    const onCrash = (val) => {
       setStatus('CRASHED');
       setMultiplier(val);
+      // Daca a explodat racheta, stergem pariul din memorie
+      setActiveBet(null); 
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
-    });
-
-    socket.on('bet_accepted', () => {
-        setActiveBet(betAmount);
-        setBalance((prev) => prev - betAmount);
-    });
-
-    socket.on('cash_out_success', ({ profit }) => {
+    };
+    
+    const onBetAccepted = ({ amount }) => {
+        setActiveBet(amount); // Memoreaza pariul
+        setBalance((prev) => prev - amount); // Scade din balanta grafic
+    };
+    
+    const onCashOutSuccess = ({ profit }) => {
         setMessage(`+${profit}`);
-        setBalance((prev) => prev + profit);
-        setActiveBet(null);
+        setBalance((prev) => prev + profit); // Adauga profitul la balanta grafic
+        setActiveBet(null); // Scoate butonul verde dupa cash out
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    });
+    };
 
-    return () => socket.off();
-  }, [betAmount]);
+    socket.on('balance_update', onBalanceUpdate);
+    socket.on('game_state_update', onGameStateUpdate);
+    socket.on('tick', onTick);
+    socket.on('crash', onCrash);
+    socket.on('bet_accepted', onBetAccepted);
+    socket.on('cash_out_success', onCashOutSuccess);
 
-  const handleBet = () => {
-    if (balance >= betAmount) socket.emit('place_bet', { userId, amount: betAmount });
-  };
-
-  const handleCashOut = () => {
-    socket.emit('cash_out', { userId, amount: activeBet, multiplier });
-  };
+    return () => {
+      socket.off('balance_update', onBalanceUpdate);
+      socket.off('game_state_update', onGameStateUpdate);
+      socket.off('tick', onTick);
+      socket.off('crash', onCrash);
+      socket.off('bet_accepted', onBetAccepted);
+      socket.off('cash_out_success', onCashOutSuccess);
+    };
+  }, [userId]);
 
   return (
     <div className="min-h-screen bg-[conic-gradient(at_bottom,_var(--tw-gradient-stops))] from-[#0f0c29] via-[#302b63] to-[#24243e] text-white flex flex-col font-sans overflow-hidden">
