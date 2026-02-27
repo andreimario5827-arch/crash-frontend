@@ -6,14 +6,14 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.setHeaderColor('#0f0c29');
 
-// REPLACE WITH YOUR BACKEND URL
+// ⚠️ Folosim exact link-ul tau de Render de data trecuta
 const BACKEND_URL = 'https://crash-backend-kzhe.onrender.com'; 
 const socket = io(BACKEND_URL);
 
 export default function App() {
   const [status, setStatus] = useState('BETTING'); 
   const [multiplier, setMultiplier] = useState(1.00);
-  const [countdown, setCountdown] = useState(0); // For the timer
+  const [countdown, setCountdown] = useState(0); 
   const [balance, setBalance] = useState(0);
   const [betAmount, setBetAmount] = useState(10);
   const [activeBet, setActiveBet] = useState(null);
@@ -21,76 +21,69 @@ export default function App() {
 
   const userId = tg.initDataUnsafe?.user?.id || 12345;
 
-  // Function to buy chips (triggers Bot invoice)
-  const handleBuyChips = () => {
-    // This sends a command to the bot to generate the invoice
-    // Note: In a real app, you'd use showInvoice() from WebApp API, 
-    // but for MVP, we simply close and ask them to type /buy or use a callback
-    tg.openInvoice("https://t.me/YourBotName?start=buy"); // Simplest method for MVP
-  };
-
-  
-    useEffect(() => {
+  useEffect(() => {
+    // Cerem balanta la intrarea in joc
     socket.emit('request_balance', userId);
 
-    const onBalanceUpdate = (val) => setBalance(val);
+    socket.on('balance_update', (val) => {
+      setBalance(val);
+    });
     
-    const onGameStateUpdate = (state) => {
+    socket.on('game_state_update', (state) => {
       setStatus(state.status);
       if (state.status === 'BETTING') {
         setMultiplier(1.00);
         setCountdown(state.countdown);
         setMessage('');
-        
-        // REPARATIA ESTE AICI: Resetam pariul DOAR la secunda 5 (inceputul rundei noi), nu in fiecare secunda!
+        // Scoatem pariul vechi DOAR cand racheta e jos si cronometrul e la 5
         if (state.countdown === 5) {
-           setActiveBet(null); 
+          setActiveBet(null);
         }
       }
-    };
+    });
+
+    socket.on('tick', (num) => setMultiplier(num));
     
-    const onTick = (num) => setMultiplier(num);
-    
-    const onCrash = (val) => {
+    socket.on('crash', (val) => {
       setStatus('CRASHED');
       setMultiplier(val);
-      // Daca a explodat racheta, stergem pariul din memorie
-      setActiveBet(null); 
+      setActiveBet(null); // Racheta a explodat, pariul s-a pierdut
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
-    };
-    
-    const onBetAccepted = ({ amount }) => {
-        setActiveBet(amount); // Memoreaza pariul
-        setBalance((prev) => prev - amount); // Scade din balanta grafic
-    };
-    
-    const onCashOutSuccess = ({ profit }) => {
+    });
+
+    socket.on('bet_accepted', ({ amount }) => {
+        setActiveBet(amount); // Blocheaza butonul si memoreaza pariul!
+        setBalance((prev) => prev - amount);
+    });
+
+    socket.on('cash_out_success', ({ profit }) => {
         setMessage(`+${profit}`);
-        setBalance((prev) => prev + profit); // Adauga profitul la balanta grafic
-        setActiveBet(null); // Scoate butonul verde dupa cash out
+        setBalance((prev) => prev + profit);
+        setActiveBet(null); // Transforma butonul verde la loc in gri
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    };
+    });
 
-    socket.on('balance_update', onBalanceUpdate);
-    socket.on('game_state_update', onGameStateUpdate);
-    socket.on('tick', onTick);
-    socket.on('crash', onCrash);
-    socket.on('bet_accepted', onBetAccepted);
-    socket.on('cash_out_success', onCashOutSuccess);
-
+    // Curatam conexiunile ca sa nu se dubleze
     return () => {
-      socket.off('balance_update', onBalanceUpdate);
-      socket.off('game_state_update', onGameStateUpdate);
-      socket.off('tick', onTick);
-      socket.off('crash', onCrash);
-      socket.off('bet_accepted', onBetAccepted);
-      socket.off('cash_out_success', onCashOutSuccess);
+      socket.off('balance_update');
+      socket.off('game_state_update');
+      socket.off('tick');
+      socket.off('crash');
+      socket.off('bet_accepted');
+      socket.off('cash_out_success');
     };
   }, [userId]);
 
+  const handleBet = () => {
+    if (balance >= betAmount) socket.emit('place_bet', { userId, amount: betAmount });
+  };
+
+  const handleCashOut = () => {
+    socket.emit('cash_out', { userId, amount: activeBet, multiplier });
+  };
+
   return (
     <div className="min-h-screen bg-[conic-gradient(at_bottom,_var(--tw-gradient-stops))] from-[#0f0c29] via-[#302b63] to-[#24243e] text-white flex flex-col font-sans overflow-hidden">
-      
       
       {/* Header */}
       <div className="w-full bg-black/30 backdrop-blur-md p-4 flex justify-between items-center z-20 border-b border-white/10">
@@ -98,11 +91,9 @@ export default function App() {
           <button onClick={() => tg.openTelegramLink(`https://t.me/${tg.botUser?.username}?start=buy`)} className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold text-xs mb-1">
             + BUY CHIPS
           </button>
-          {/* AFISAM ID-UL PE ECRAN SA FIM SIGURI */}
           <span className="text-[10px] text-gray-400">ID: {userId}</span>
         </div>
         
-        {/* BUTON DE REFRESH MANUAL */}
         <div 
           onClick={() => socket.emit('request_balance', userId)}
           className="flex items-center space-x-2 bg-black/50 px-4 py-2 rounded-full border border-yellow-500/50 active:scale-95 transition-transform cursor-pointer"
@@ -116,7 +107,6 @@ export default function App() {
       {/* Game Area */}
       <div className="flex-1 relative w-full flex flex-col items-center justify-center">
         
-        {/* COUNTDOWN TIMER (Only shows in Betting phase) */}
         {status === 'BETTING' && (
             <div className="absolute z-30 flex flex-col items-center">
                 <div className="text-6xl font-black text-blue-400 animate-pulse">{countdown}</div>
@@ -124,7 +114,6 @@ export default function App() {
             </div>
         )}
 
-        {/* Rocket / Explosion Logic (Same as before) */}
         <AnimatePresence mode='wait'>
             {status === 'RUNNING' && (
                 <motion.div className="text-8xl" animate={{ y: [0, -20, 0] }} transition={{ repeat: Infinity, duration: 2 }}>🚀</motion.div>
@@ -134,25 +123,27 @@ export default function App() {
             )}
         </AnimatePresence>
 
-        {/* Multiplier Display */}
         {status !== 'BETTING' && (
             <h1 className={`text-7xl font-black mt-8 ${status === 'CRASHED' ? 'text-red-500' : 'text-white'}`}>
                 {multiplier.toFixed(2)}x
             </h1>
+        )}
+        
+        {/* Mesaj Profit */}
+        {message && status === 'RUNNING' && (
+           <div className="absolute top-1/4 text-4xl font-black text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.8)] animate-bounce">{message}</div>
         )}
       </div>
 
       {/* Controls */}
       <div className="w-full bg-black/40 backdrop-blur-xl p-6 rounded-t-[3rem] border-t border-white/10 space-y-4 z-30">
         
-        {/* Bet Selector */}
         <div className="flex justify-between items-center bg-black/50 p-2 rounded-2xl">
             <button onClick={() => setBetAmount(Math.max(10, betAmount - 10))} className="w-12 h-12 bg-gray-800 rounded-xl text-xl font-bold">-</button>
             <span className="text-2xl font-bold">🪙 {betAmount}</span>
             <button onClick={() => setBetAmount(betAmount + 10)} className="w-12 h-12 bg-gray-800 rounded-xl text-xl font-bold">+</button>
         </div>
 
-        {/* Main Button */}
         {status === 'BETTING' && !activeBet && (
             <button onClick={handleBet} className="w-full py-4 bg-blue-600 rounded-xl font-black text-2xl uppercase shadow-lg shadow-blue-500/50">
                 BET NOW
