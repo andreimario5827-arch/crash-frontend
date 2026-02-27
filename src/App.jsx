@@ -7,7 +7,7 @@ tg.expand();
 tg.setHeaderColor('#0f0c29');
 
 // REPLACE WITH YOUR BACKEND URL
-const BACKEND_URL = 'https://your-backend-url.onrender.com'; 
+const BACKEND_URL = 'https://crash-backend-kzhe.onrender.com'; 
 const socket = io(BACKEND_URL);
 
 export default function App() {
