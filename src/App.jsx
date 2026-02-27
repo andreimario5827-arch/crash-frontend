@@ -82,12 +82,23 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[conic-gradient(at_bottom,_var(--tw-gradient-stops))] from-[#0f0c29] via-[#302b63] to-[#24243e] text-white flex flex-col font-sans overflow-hidden">
       
+      
       {/* Header */}
       <div className="w-full bg-black/30 backdrop-blur-md p-4 flex justify-between items-center z-20 border-b border-white/10">
-        <button onClick={() => tg.openTelegramLink(`https://t.me/${tg.botUser?.username}?start=buy`)} className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold text-xs">
-          + BUY CHIPS
-        </button>
-        <div className="flex items-center space-x-2 bg-black/50 px-4 py-2 rounded-full border border-yellow-500/50">
+        <div className="flex flex-col">
+          <button onClick={() => tg.openTelegramLink(`https://t.me/${tg.botUser?.username}?start=buy`)} className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold text-xs mb-1">
+            + BUY CHIPS
+          </button>
+          {/* AFISAM ID-UL PE ECRAN SA FIM SIGURI */}
+          <span className="text-[10px] text-gray-400">ID: {userId}</span>
+        </div>
+        
+        {/* BUTON DE REFRESH MANUAL */}
+        <div 
+          onClick={() => socket.emit('request_balance', userId)}
+          className="flex items-center space-x-2 bg-black/50 px-4 py-2 rounded-full border border-yellow-500/50 active:scale-95 transition-transform cursor-pointer"
+        >
+          <span className="text-lg">🔄</span>
           <span className="text-xl">🪙</span>
           <span className="text-yellow-400 font-black text-xl">{balance}</span>
         </div>
