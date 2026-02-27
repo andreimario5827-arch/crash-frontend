@@ -29,7 +29,15 @@ export default function App() {
     tg.openInvoice("https://t.me/YourBotName?start=buy"); // Simplest method for MVP
   };
 
-  useEffect(() => {
+  
+    useEffect(() => {
+    // --- COD NOU: Cere balanta curenta la conectare ---
+    socket.emit('request_balance', userId);
+
+    socket.on('balance_update', (val) => {
+      setBalance(val);
+    });
+    // --------------------------------------------------
     socket.on('game_state_update', (state) => {
       setStatus(state.status);
       if (state.status === 'BETTING') {
