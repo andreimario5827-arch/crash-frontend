@@ -88,9 +88,7 @@ export default function App() {
       {/* Header */}
       <div className="w-full bg-black/30 backdrop-blur-md p-4 flex justify-between items-center z-20 border-b border-white/10">
         <div className="flex flex-col">
-          <button onClick={() => tg.openTelegramLink(`https://t.me/${tg.botUser?.username}?start=buy`)} className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold text-xs mb-1">
-            + BUY CHIPS
-          </button>
+          
           <span className="text-[10px] text-gray-400">ID: {userId}</span>
         </div>
         
