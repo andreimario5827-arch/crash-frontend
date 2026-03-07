@@ -136,6 +136,20 @@ export default function App() {
       {/* Controls */}
       <div className="w-full bg-black/40 backdrop-blur-xl p-6 rounded-t-[3rem] border-t border-white/10 space-y-4 z-30">
         
+        {/* --- Butoanele de Pariu Rapid --- */}
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {[100, 200, 500, 1000, 5000, 10000].map((val) => (
+            <button 
+              key={val} 
+              onClick={() => setBetAmount(val)} 
+              className="bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg py-2 text-sm font-bold border border-white/5 transition-colors"
+            >
+              {val}
+            </button>
+          ))}
+        </div>
+
+        {/* Ajustarea fina cu - si + */}
         <div className="flex justify-between items-center bg-black/50 p-2 rounded-2xl">
             <button onClick={() => setBetAmount(Math.max(10, betAmount - 10))} className="w-12 h-12 bg-gray-800 rounded-xl text-xl font-bold">-</button>
             <span className="text-2xl font-bold">🪙 {betAmount}</span>
